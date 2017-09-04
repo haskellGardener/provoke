@@ -10,7 +10,7 @@
 
 Module      : XMPP
 Copyright   : (c) Robert Lee 2015
-License     : All Rights Reserved
+License     : ISC
 
 Maintainer  : robert.lee@chicago.vc
 Stability   : None

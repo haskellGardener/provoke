@@ -1,0 +1,10 @@
+flags: {}
+extra-package-dbs: []
+packages:
+- '.'
+- shelly/
+- shelly/shelly-extra/
+extra-deps:
+- pontarius-xmpp-0.5.4
+- stringprep-1.0.0
+resolver: lts-8.23

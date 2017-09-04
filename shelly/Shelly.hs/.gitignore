@@ -1,0 +1,10 @@
+.stack-work/
+_darcs
+dist/
+cabal-dev/
+tags
+*.tix
+.hpc/*
+.shelly/
+.cabal-sandbox/
+cabal.sandbox.config

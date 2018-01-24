@@ -337,6 +337,18 @@ provoke config@Config {..} = do
                            , files = []
                            , globs = ["*.cabal", "*.hs", "*.yaml"]
                            }
+                , WatchDir { directory = "lib"
+                           , files = []
+                           , globs = ["*.hs"]
+                           }
+                , WatchDir { directory = "lib/V1_1"
+                           , files = []
+                           , globs = ["*.hs"]
+                           }
+                , WatchDir { directory = "app"
+                           , files = []
+                           , globs = ["*.hs"]
+                           }
                 ]
 
     -- | callbackF is the inotify callback function

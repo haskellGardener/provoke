@@ -62,28 +62,31 @@ import Lading
 
 -- Explicit Imports
 
-import           Control.Concurrent.STM (atomically, readTChan, TChan)
-import           Control.Monad          (void, join, forever, forM_, unless)
-import           Data.Maybe             (fromJust, fromMaybe)
-import           Data.Version           (showVersion)
-import           Data.Word              (Word8)
-import           Data.XML.Types         (Element)
-import           Network.HostName       (getHostName)
-import           Network.Xmpp
-import           Network.Xmpp.IM        (simpleIM)
-import           Network.Xmpp.Lens      (set)
-import           Paths_provoke          (version)
-import           System.IO              (stderr)
-import           System.Info            (os, arch, compilerName, compilerVersion)
-import           Text.Shakespeare.Text  (lt)
+import Control.Concurrent.STM ( TChan, atomically, readTChan            )
+import Control.Monad          ( forM, forever, join, unless_, void      )
+import Data.Maybe             ( fromJust, fromMaybe                     )
+import Data.Version           ( showVersion                             )
+import Data.Word              ( Word8                                   )
+import Data.XML.Types         ( Element                                 )
+import Network.HostName       ( getHostName                             )
+import Network.Xmpp.IM        ( simpleIM                                )
+import Network.Xmpp.Lens      ( set                                     )
+import Paths_provoke          ( version                                 )
+import System.Info            ( arch, compilerName, compilerVersion, os )
+import System.IO              ( stderr                                  )
+import Text.Shakespeare.Text  ( lt                                      )
 
 -- Qualified Imports
 
-import qualified Data.Text as T
+import qualified Data.Text      as T
+import qualified Data.Text.IO   as TIO
 import qualified Data.Text.Lazy as LT
-import qualified Data.Text.IO as TIO
-import qualified Text.XML as TX
+import qualified Text.XML       as TX
 
+-- Undisciplined Imports
+
+import Network.Xmpp
+  
 -- End of Imports
 -- -----------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -94,7 +97,7 @@ import qualified Text.XML as TX
 
 chanOutXMPP :: XmppPK -> TChan ReportMsg -> IO (Either XmppFailure ())
 chanOutXMPP xmppPK tchan = forever $ do
-  ReportMsg {..} <- atomically $ readTChan tchan
+  ReportMsg {..} <- atomically $ readTChan tchan -- modify this to perform several additional attempts after one succedes.
   case rmMessage of
     Nothing -> transmit xmppPK $ T.null rmCmd ? rmMsg $ T.concat [rmCmd, "\n", rmMsg]
     Just mess -> rawTran xmppPK mess
@@ -120,7 +123,8 @@ getChat XmppPK {..} = waitForMessage mF sessX
 startXMPP :: Jid -> T.Text -> IO (Either XmppFailure (Maybe XmppPK))
 startXMPP toJ fromResource = do
   -- TODO: report any existing resources in the header comments sent to the user.
-  eSess <- session realm (simpleAuthRes user pass fromResource) def
+  eSess <- session realm (simpleAuthRes user pass fromResource) def { sessionStreamConfiguration = streamConfig }
+
   case eSess of
     Left xmppfail -> pure $ Left xmppfail
     Right sess -> do
@@ -149,6 +153,9 @@ startXMPP toJ fromResource = do
         pure . Right $ Just xmppPK
 
   where
+    streamConfig :: StreamConfiguration
+    streamConfig = def { connectionDetails = UseSrv "cyntrum.com" }
+
     presenceP :: Presence -> Bool
     presenceP Presence{..} = case presenceFrom of
                                Just toJ -> True
@@ -164,10 +171,10 @@ startXMPP toJ fromResource = do
                                             , Just resource
                                             )
     realm = "chicago.vc" -- TODO: move credentials to config file or ask on command line                                                             -- ⚠
-    user = "provoke"
-    pass = "qBYt0Q5o"
+    user = "FutureFinance"
+    pass = "Xa054ujA52RGcBu0C9Sodi17tdaQPAWT0LHAKQOsjrxM3relpOI7MOaQvEeHddRWbNjN7/8D/3GD"
 
-styleMsg :: T.Text -> T.Text -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients
+styleMsg :: T.Text -> T.Text -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients                                      -- ⚠
 styleMsg style alt@txt = message { messageType    = Chat
                                  , messagePayload = [ xhtml, plain ]
                                  }
@@ -183,7 +190,7 @@ styleMsg style alt@txt = message { messageType    = Chat
 
     lineBr = T.intercalate "<br/>" . T.lines . escaper
 
-tableMsg :: T.Text -> T.Text -> Table -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients
+tableMsg :: T.Text -> T.Text -> Table -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients                             -- ⚠
 tableMsg style plain table = message { messageType    = Chat
                                      , messagePayload = [ xhtml, plainE ]
                                      }

@@ -174,8 +174,8 @@ mMemptyM = (>>= pure . mMempty)
 
 infixl 1 ?
 
-data XmppPK = XmppPK { sessX :: Session
-                     , toX :: Jid
+data XmppPK = XmppPK { sessX         :: Session
+                     , toX           :: Jid
                      , fromResourceX :: T.Text
                      }
 

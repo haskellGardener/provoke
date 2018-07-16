@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-| Time-stamp: <2018-07-16 08:13:02 robert>
 
-{-|
-
-Module      : ProvokeMain
-Copyright   : (c) Robert Lee 2015
+Module      : ProvokeMain 
+Copyright   : (c) Robert Lee, 2015-2018
 License     : ISC
 
 Maintainer  : robert.lee@chicago.vc
@@ -12,7 +11,7 @@ Portability : non-portable (GHC extensions)
 
 Contumacy   : Best viewed with unbroken/unwrapped 154 column display.
 
-Primary module for provoke
+Description : Provoke's main operational functions.
 
 -}
 
@@ -65,7 +64,7 @@ module ProvokeMain where
 -- Local Imports
 
 import Lading
-import XMPP
+import XMPP   ( chanOutXMPP, disconnect, getChat, rawTran, startXMPP, styleMsg, transmit, warnDisco )
 
 -- Explicit Imports
 
@@ -86,7 +85,7 @@ import Shelly                   ( FilePath, Sh
                                 , asyncSh, canonicalize, chdir, echo, echo_n, errorExit, escaping, exit, fromText
                                 , get_env_all, get_env_text , handleany_sh, inspect, lastExitCode, liftIO
                                 , log_stderr_with, log_stdout_with, ls, print_commands, pwd, readfile, run
-                                , setCallback, setCreateProcessGroup, setenv, shelly, test_d, test_f, toTextIgnore
+                                , setCallback, setCreateProcessGroup, setenv, shelly, test_d, test_e, test_f, toTextIgnore
                                 , unless, verbosely, when                                                         )
 import System.Console.GetOpt    ( ArgDescr(NoArg, ReqArg), ArgOrder(Permute), OptDescr(Option), getOpt, usageInfo )
 import System.Environment       ( getArgs                                                                         )
@@ -141,6 +140,9 @@ __curChargesTVar = unsafePerformIO (newTVarIO [])       -- Charge Indice for alt
 __oncePTVar :: TVar Bool
 __oncePTVar = unsafePerformIO (newTVarIO False)         -- Last dispatch predicate, set by cli option or interactive command
 
+-- End of Module global tvars
+-- -----------------------------------------------------------------------------------------------------------------------------------------------------
+
 verbosity :: Bool -> Sh a -> Sh a
 verbosity p = verbosely . print_commands p
 
@@ -159,8 +161,9 @@ data WatchDir = WatchDir { directory :: FilePath
 
 watchDirToFPs :: WatchDir -> Sh [FilePath]
 watchDirToFPs WatchDir{..} = do
-  dirP <- test_d directory
-  if dirP
+  existsP <- test_e directory
+  isDirectoryP <- test_d directory
+  if existsP && isDirectoryP                 -- Ignore non-existant or non-directory filesystem objects.
   then chdir directory (ls "." >>= mapM canonicalize . filter (\fp -> isMatch (toPreludeFilePath fp) || isFile fp))
   else pure []
 
@@ -225,7 +228,7 @@ clOpts argv = case getOpt Permute options argv of
     flagPair flag = (head . words $ show flag, flag)
 
 updateCharges :: Config -> Sh ()
-updateCharges config@Config {..} = do
+updateCharges Config {..} = do
   unless (T.null configFile) $ do
     cliConfigP <- test_f $ fromText configFile
     unless cliConfigP . errorExit $ T.concat ["config file: ", configFile, " not found"]                                                             -- Ω
@@ -242,14 +245,14 @@ updateCharges config@Config {..} = do
 provokeMain :: IO ()
 provokeMain = do
   (flagMap', _) <- getArgs >>= clOpts
-  provoke Config { verboseP   = M.member "Verbose"                                           flagMap'
-                 , onceP      = M.member "Once"                                              flagMap'
-                 , immediateP = M.member "Immediate"                                         flagMap'
-                 , terminateP = M.member "Terminate"                                         flagMap'
-                 , flagCharge = maybe T.empty (\(Charge s) -> T.pack s) $ M.lookup "Charge"  flagMap'
-                 , configFile = maybe T.empty (\(ConfigFile t) -> t) $ M.lookup "ConfigFile" flagMap'
+  provoke Config { verboseP   = M.member "Verbose"                                                         flagMap'
+                 , onceP      = M.member "Once"                                                            flagMap'
+                 , immediateP = M.member "Immediate"                                                       flagMap'
+                 , terminateP = M.member "Terminate"                                                       flagMap'
+                 , flagCharge = maybe T.empty (\(Charge s) -> T.pack s) $ M.lookup "Charge"                flagMap'
+                 , configFile = maybe T.empty (\(ConfigFile t) -> t) $ M.lookup "ConfigFile"               flagMap'
                  , configJid  = maybe Nothing (\(JID e) -> either (const Nothing) Just e) $ M.lookup "JID" flagMap'
-                 , flagMap    = flagMap'
+                 , flagMap    =                                                                            flagMap'
                  }
 
 -- | provoke is the entry point for this application, called once by provokeMain
@@ -259,7 +262,7 @@ provoke config@Config {..} = do
 
   shelly . escaping False . verbosity verboseP $ do -- start up provoke system
     mSession <- case M.lookup "JID" flagMap of
-      Just (JID (Left ())) -> errorExit "Jid provided is not well formed"                                                                            -- Ω
+      Just (JID (Left ()))   -> errorExit "Jid provided is not well formed"                                                                          -- Ω
       Just (JID (Right toJ)) -> do cwd <- pwd >>= pure . T.pack . takeFileName . toPreludeFilePath
                                    hnm <- liftIO $ getHostName >>= pure . T.pack
                                    let commandR = T.intercalate "▱" [hnm, cwd, "command"]
@@ -275,7 +278,7 @@ provoke config@Config {..} = do
                                          Right Nothing -> errorExit "Recipient Jid not available"                                                    -- Ω
                                          Right (Just cXmppPK) -> writeTVarSh xmppPKTVarCom $ Just cXmppPK
                                        pure $ Just xmppPK
-      _ -> return Nothing
+      _ -> pure Nothing
     writeTVarSh xmppPKTVar mSession
     whenJust mSession $ echo "XMPP active"
     when verboseP $ inspect flagMap
@@ -284,18 +287,18 @@ provoke config@Config {..} = do
 
     fps <- mapM watchDirToFPs watchDirs >>= pure . join -- establish what triggers events on the filesystem
     when verboseP $ inspect fps
-    void . liftIO . mapM_ (\fp -> IN.addWatch iNot [IN.Modify, IN.CloseWrite] fp (callbackF fp)) $ map toPreludeFilePath fps -- establish event watchers
+    liftIO . mapM_ (\fp -> IN.addWatch iNot [IN.Modify, IN.CloseWrite] fp (callbackF fp)) $ map toPreludeFilePath fps -- establish event watchers
     prevProcTime <- liftIO getProcessTimes
 
-    when (not (immediateP && onceP)) . void $    -- launch the manual command loop if applicable
+    unless (immediateP && onceP) . void $        -- launch the manual command loop if applicable
       do mXmppPK <- readTVarSh xmppPKTVarCom     -- maybe there's xmpp joy, or sadly Nothing
          tchan <- atomSh $ dupTChan commandTChan -- get a local copy of the broadcast chan
          case mXmppPK of                         -- got XMPP command session/resource?
-           Nothing -> do asyncSh $ chanOutStdout tchan -- do it via terminal only
-                         asyncSh commandLoop           -- commandLoop thread for receiving commands typed at the terminal
-           Just xmppPK -> do asyncSh $ liftIO $ chanOutXMPP xmppPK tchan -- thread to receive chan broadcast and send to XMMP partner
-                             asyncSh $ imXMPP config xmppPK              -- thread to receive XMPP IM and send to commandResponse
-                             asyncSh commandLoop                         -- commandLoop thread for receiving commands typed at the terminal
+           Nothing -> asyncSh (chanOutStdout tchan) -- do it via terminal only
+                   >> asyncSh commandLoop           -- commandLoop thread for receiving commands typed at the terminal
+           Just xmppPK -> asyncSh (liftIO $ chanOutXMPP xmppPK tchan) -- thread to receive chan broadcast and send to XMMP partner
+                       >> asyncSh (imXMPP config xmppPK)              -- thread to receive XMPP IM and send to commandResponse
+                       >> asyncSh commandLoop                         -- commandLoop thread for receiving commands typed at the terminal
 
 
     if immediateP                                               -- immediateP from command line option
@@ -313,7 +316,7 @@ provoke config@Config {..} = do
       when verboseP $ inspect (ln, T.length ln)
       commandResponse config ln                  -- parse the line (act on it as well)
 
-    watchDirs = [ WatchDir { directory = "src"  --TODO: watchDirs needs to be settable on the command line, this would be default                    -- ⚠
+    watchDirs = [ WatchDir { directory = "src"   -- TODO: watchDirs needs to be settable on the command line, this would be default                  -- ⚠
                            , files = []
                            , globs = ["*.hs"]
                            }
@@ -412,7 +415,6 @@ respondToEvents prevProcTime Config {..} = eventLoop prevProcTime
                                                       , tvarRun = emptyTMvar
                                                       }
                                         )
-
               liftIO $ wait dispatch                                        -- wait for dispatch to complete
               mFp <- liftIO $ atomically $ tryReadTMVar __eventBarrierTMVar -- check for events after charge is finished
               exitOnQuit mFp                                                -- exitOnQuit set by interactive command                                 -- Ω
@@ -723,7 +725,7 @@ commandResponse config@Config{..} txt_pp = lilParse txt_pp
                                                   putTMVar __eventBarrierTMVar "Manual: r"
                                                   pure True
                                               unless p $ styleXcho StderrSty "Unknown command number for r" *> statusMsg
-                                              where nsminus = map pred ns -- pred equivalent to (subtract 1), (-) cannot be sectioned (Haskell Gods)
+              where nsminus = map pred ns -- pred equivalent to (subtract 1), (-) cannot be sectioned (Haskell Gods)
 
             runSub (RunQuitSetCurCharges []) = lilParse "r"
             runSub (RunQuitSetCurCharges ns) = do mErrMsg <- atomSh $ do
@@ -747,14 +749,16 @@ commandResponse config@Config{..} txt_pp = lilParse txt_pp
             runSub (ListCharges []) = lilParse "l"
             runSub (ListCharges ns) = do charges_t <- readTVarSh __chargesTVar
                                          let inbounds c = c < length charges_t && c >= 0
-                                             charges_i = filter inbounds nsminus
-                                             commands = zip ns $ map (charges_t !!) charges_i
+                                             charges_i  = filter inbounds nsminus
+                                             commands   = zip ns $ map (charges_t !!) charges_i
                                          if length charges_i /= length nsminus
                                          then styleXcho StderrSty "Unknown command number for l"
                                          else forM_ commands $ \(n,c) -> xcho $ T.concat ["    ", tshow n, ": ", c]
                                          statusMsg
                                          where nsminus = map pred ns -- pred equivalent to (subtract 1), (-) cannot be sectioned (Haskell Gods)
 
+            runSub _ = ignore
+              
     logX :: Maybe XmppPK -> Handle -> (T.Text -> IO ())
     logX Nothing h | h == stdout = out_chans [ TIO.hPutStrLn stderr . T.append "    " ]
                    | h == stderr = out_chans [ TIO.hPutStrLn stderr . T.append "e   " ]

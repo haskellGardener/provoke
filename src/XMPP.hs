@@ -1,15 +1,14 @@
- {-# LANGUAGE OverloadedStrings
-            , RecordWildCards
-            , DoAndIfThenElse
-            , TemplateHaskell
-            , QuasiQuotes
-            , UndecidableInstances
-  #-}
-
-{-|
+{-# LANGUAGE OverloadedStrings
+           , RecordWildCards
+           , DoAndIfThenElse
+           , TemplateHaskell
+           , QuasiQuotes
+           , UndecidableInstances
+#-}
+{-| Time-stamp: <2018-07-16 08:20:33 robert>
 
 Module      : XMPP
-Copyright   : (c) Robert Lee 2015
+Copyright   : (c) Robert Lee, 2015-2018
 License     : ISC
 
 Maintainer  : robert.lee@chicago.vc
@@ -18,7 +17,7 @@ Portability : non-portable (GHC extensions)
 
 Contumacy   : Best viewed with unbroken/unwrapped 154 column display.
 
-XMPP module for provoke
+Description : XMPP module for provoke
 
 -}
 
@@ -62,19 +61,25 @@ import Lading
 
 -- Explicit Imports
 
-import Control.Concurrent.STM ( TChan, atomically, readTChan            )
-import Control.Monad          ( forM, forever, join, unless_, void      )
-import Data.Maybe             ( fromJust, fromMaybe                     )
-import Data.Version           ( showVersion                             )
-import Data.Word              ( Word8                                   )
-import Data.XML.Types         ( Element                                 )
-import Network.HostName       ( getHostName                             )
-import Network.Xmpp.IM        ( simpleIM                                )
-import Network.Xmpp.Lens      ( set                                     )
-import Paths_provoke          ( version                                 )
+import Control.Concurrent.STM ( TChan, atomically, readTChan )
+import Control.Monad          ( forever, void )
+import Data.Version           ( showVersion )
+import Data.XML.Types         ( Element )
+import Network.HostName       ( getHostName )
+import Network.Xmpp           ( ConnectionDetails(UseSrv), ConnectionState(Secured), Jid, Message(..)
+                              , MessageType (Chat), Presence(Presence), PresenceType(Available)
+                              , StreamConfiguration, XmppFailure
+                              , connectionDetails, def, digestMd5, endSession, getJid, jidToText, message
+                              , messageFrom, messageTypeL, plain, presenceFrom, presenceOffline, presenceOnline
+                              , presenceType, scramSha1, sendMessage, sendPresence, session, sessionStreamConfiguration
+                              , waitForMessage,waitForPresence
+                              )
+import Network.Xmpp.IM        ( simpleIM )
+import Network.Xmpp.Lens      ( set )
+import Paths_provoke          ( version )
+import System.IO              ( stderr )
 import System.Info            ( arch, compilerName, compilerVersion, os )
-import System.IO              ( stderr                                  )
-import Text.Shakespeare.Text  ( lt                                      )
+import Text.Shakespeare.Text  ( lt )
 
 -- Qualified Imports
 
@@ -85,12 +90,9 @@ import qualified Text.XML       as TX
 
 -- Undisciplined Imports
 
-import Network.Xmpp
-  
 -- End of Imports
 -- -----------------------------------------------------------------------------------------------------------------------------------------------------
-
-
+ 
 {- TODO
    Add a version of transmit that can break long lines into multiple transmits with greater indentation, or some such.
 -}
@@ -112,7 +114,7 @@ warnDisco :: XmppPK -> T.Text -> IO (Either XmppFailure ())
 warnDisco xmppPK@XmppPK {..} txt = transmit xmppPK (T.concat ["▲ ▲ ▲ ", txt, " ▲ ▲ ▲"])
 
 disconnect :: XmppPK -> IO ()
-disconnect XmppPK {..} = sendPresence presenceOffline sessX *> endSession sessX
+disconnect XmppPK {..} = sendPresence presenceOffline sessX >> endSession sessX
 
 getChat :: XmppPK -> IO Message
 getChat XmppPK {..} = waitForMessage mF sessX
@@ -132,7 +134,7 @@ startXMPP toJ fromResource = do
                           , sessX = sess
                           , fromResourceX = fromResource
                           }
-      ret <- sendPresence presenceOnline sess
+      _ret <- sendPresence presenceOnline sess
       found <- waitForPresence presenceP sess
 
       if (presenceType found /= Available)
@@ -158,7 +160,7 @@ startXMPP toJ fromResource = do
 
     presenceP :: Presence -> Bool
     presenceP Presence{..} = case presenceFrom of
-                               Just toJ -> True
+                               Just _toJ -> True
                                _ -> False
 
     provokeMsg = T.intercalate " " $ map T.pack ["✧ provoke version:", showVersion version]
@@ -170,17 +172,17 @@ startXMPP toJ fromResource = do
                                                              else []
                                             , Just resource
                                             )
-    realm = "chicago.vc" -- TODO: move credentials to config file or ask on command line                                                             -- ⚠
-    user = "FutureFinance"
-    pass = "Xa054ujA52RGcBu0C9Sodi17tdaQPAWT0LHAKQOsjrxM3relpOI7MOaQvEeHddRWbNjN7/8D/3GD"
+    realm = "" -- TODO: move credentials to config file or ask on command line                                                             -- ⚠
+    user = ""
+    pass = ""
 
 styleMsg :: T.Text -> T.Text -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients                                      -- ⚠
 styleMsg style alt@txt = message { messageType    = Chat
-                                 , messagePayload = [ xhtml, plain ]
+                                 , messagePayload = [ xhtml, plainL ]
                                  }
   where
-    plain, xhtml :: Element
-    plain = ltToElement [lt|<body>#{escaper alt}</body>|]
+    plainL, xhtml :: Element
+    plainL = ltToElement [lt|<body>#{escaper alt}</body>|]
     xhtml = ltToElement [lt|<html xmlns="http://jabber.org/protocol/xhtml-im">
                               <body xmlns="http://www.w3.org/1999/xhtml">
                                 <span style="#{style}">#{lineBr txt}</span>
@@ -190,13 +192,14 @@ styleMsg style alt@txt = message { messageType    = Chat
 
     lineBr = T.intercalate "<br/>" . T.lines . escaper
 
-tableMsg :: T.Text -> T.Text -> Table -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients                             -- ⚠
-tableMsg style plain table = message { messageType    = Chat
-                                     , messagePayload = [ xhtml, plainE ]
-                                     }
+
+tableMsg :: T.Text -> T.Text -> Table -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients
+tableMsg _style plain_pp _table = message { messageType    = Chat
+                                          , messagePayload = [ xhtml, plainE ]
+                                          }
   where
     plainE, xhtml :: Element
-    plainE = ltToElement [lt|<body>#{escaper plain}</body>|]
+    plainE = ltToElement [lt|<body>#{escaper plain_pp}</body>|]
     xhtml = ltToElement [lt|<html xmlns="http://jabber.org/protocol/xhtml-im">
                               <body xmlns="http://www.w3.org/1999/xhtml">
                                 <table>

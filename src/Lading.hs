@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, FlexibleInstances, UndecidableInstances, TypeFamilies  #-}
-
-{-|
+{-| Time-stamp: <2018-07-16 07:56:20 robert>
 
 Module      : Lading
-Copyright   : (c) Robert Lee 2015
+Copyright   : (c) Robert Lee, 2015-2018
 License     : ISC
 
 Maintainer  : robert.lee@chicago.vc
@@ -12,7 +11,7 @@ Portability : non-portable (GHC extensions)
 
 Contumacy   : Best viewed with unbroken/unwrapped 154 column display.
 
-Lading module for provoke
+Description : Lading module for provoke
 
 -}
 
@@ -50,17 +49,29 @@ infixr 0  $, $!, ‘seq‘
 module Lading
 where
 
-import Data.Maybe (fromMaybe)  
-import System.IO.Unsafe ( unsafePerformIO )
-import qualified Data.Text as T
-import Control.Monad (void, forever)
-import Control.Concurrent.STM ( STM, TChan, TMVar, TVar, readTVar, writeTVar
-                              , atomically, putTMVar, takeTMVar, readTChan, newTVarIO, newBroadcastTChanIO
-                              )
-import Shelly (Sh, echo, echo_n, liftIO)
-import Network.Xmpp (Session, Jid, Message)
-import System.IO (Handle, stdin, stdout)
+-- Local Imports
 
+-- Explicit Imports
+
+import Control.Concurrent.STM ( STM, TChan, TMVar, TVar, atomically, newBroadcastTChanIO
+                              , newTVarIO, putTMVar, readTChan, readTVar, takeTMVar, writeTVar
+                              )
+import Control.Monad          ( void, forever )
+import Data.Maybe             ( fromMaybe )
+import Network.Xmpp           ( Jid, Message, Session )
+import Shelly                 ( Sh, echo, echo_n, liftIO )
+import System.IO              ( Handle, stdout )
+import System.IO.Unsafe       ( unsafePerformIO )
+
+-- Qualified Imports
+
+import qualified Data.Text as T
+
+-- Undisciplined Imports
+
+-- End of Imports
+-- -----------------------------------------------------------------------------------------------------------------------------------------------------
+ 
 class TShow t where
   tshow :: (->) t T.Text
 
@@ -172,7 +183,7 @@ mMemptyM = (>>= pure . mMempty)
 (?) True t _ = t
 (?) False _ f = f
 
-infixl 1 ?
+infixl 2 ?
 
 data XmppPK = XmppPK { sessX         :: Session
                      , toX           :: Jid
@@ -189,6 +200,7 @@ data ReportMsg = ReportMsg { rmHandle    :: Handle
                            , rmMessage   :: Maybe Message
                            } deriving (Show)
 
+reportMsg :: ReportMsg
 reportMsg = ReportMsg { rmHandle    = stdout
                       , rmMsg       = T.empty
                       , rmStyle     = T.empty

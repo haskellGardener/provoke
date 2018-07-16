@@ -7,4 +7,4 @@ packages:
 extra-deps:
 - pontarius-xmpp-0.5.4
 - stringprep-1.0.0
-resolver: lts-9.9
+resolver: lts-9.4

@@ -5,7 +5,7 @@
            , QuasiQuotes
            , UndecidableInstances
 #-}
-{-| Time-stamp: <2018-07-16 08:20:33 robert>
+{-| Time-stamp: <2018-10-16 08:36:13 robert>
 
 Module      : XMPP
 Copyright   : (c) Robert Lee, 2015-2018
@@ -172,9 +172,9 @@ startXMPP toJ fromResource = do
                                                              else []
                                             , Just resource
                                             )
-    realm = "" -- TODO: move credentials to config file or ask on command line                                                             -- ⚠
-    user = ""
-    pass = ""
+    realm = "chicago.vc" -- TODO: move credentials to config file or ask on command line                                                             -- ⚠
+    user = "FutureFinance"
+    pass = "PUT YOUR PASSWORD HERE"
 
 styleMsg :: T.Text -> T.Text -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients                                      -- ⚠
 styleMsg style alt@txt = message { messageType    = Chat

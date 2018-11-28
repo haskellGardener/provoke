@@ -5,7 +5,7 @@
            , QuasiQuotes
            , UndecidableInstances
 #-}
-{-| Time-stamp: <2018-10-16 08:36:13 robert>
+{-| Time-stamp: <2018-11-28 12:08:56 CST>
 
 Module      : XMPP
 Copyright   : (c) Robert Lee, 2015-2018

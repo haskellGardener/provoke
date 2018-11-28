@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
-{-| Time-stamp: <2018-10-16 08:35:10 robert>
+{-| Time-stamp: <2018-11-28 12:08:00 CST>
 
 Module      : ProvokeMain 
 Copyright   : (c) Robert Lee, 2015-2018
@@ -357,6 +357,14 @@ provoke config@Config {..} = do
                            , globs = ["*.hs"]
                            }
                 , WatchDir { directory = "lib/PL/Base"
+                           , files = []
+                           , globs = ["*.hs"]
+                           }
+                , WatchDir { directory = "lib/Source"
+                           , files = []
+                           , globs = ["*.hs"]
+                           }
+                , WatchDir { directory = "lib/Source/CallCredit"
                            , files = []
                            , globs = ["*.hs"]
                            }

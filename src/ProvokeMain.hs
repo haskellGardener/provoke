@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
-{-| Time-stamp: <2018-11-28 12:08:00 CST>
+{-| Time-stamp: <2019-01-22 12:47:23 CST>
 
 Module      : ProvokeMain 
 Copyright   : (c) Robert Lee, 2015-2018
@@ -316,61 +316,33 @@ provoke config@Config {..} = do
       when verboseP $ inspect (ln, T.length ln)
       commandResponse config ln                  -- parse the line (act on it as well)
 
-    watchDirs = [ WatchDir { directory = "src"   -- TODO: watchDirs needs to be settable on the command line, this would be default                  -- ⚠
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "src-exe"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "src-test"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "src-doctest"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "src-benchmark"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
+    haskellWatch = WatchDir { directory = ""
+                            , files = []
+                            , globs = ["*.hs"]
+                            }
+                   
+    watchDirs = [ haskellWatch { directory = "src"                   }  -- TODO: watchDirs needs to be settable on the command line, this is default -- ⚠
+                , haskellWatch { directory = "src-exe"               }
+                , haskellWatch { directory = "src-test"              }
+                , haskellWatch { directory = "src-doctest"           }
+                , haskellWatch { directory = "src-benchmark"         }
+                , haskellWatch { directory = "lib"                   }
+                , haskellWatch { directory = "lib/V1_1"              }
+                , haskellWatch { directory = "lib/V4"                }
+                , haskellWatch { directory = "lib/Base"              }
+                , haskellWatch { directory = "lib/PL"                }
+                , haskellWatch { directory = "lib/PL/Base"           }
+                , haskellWatch { directory = "lib/Source"            }
+                , haskellWatch { directory = "lib/Source/CallCredit" }
+                , haskellWatch { directory = "lib/Source/Iodine"     }
+                , haskellWatch { directory = "app"                   }
+                , haskellWatch { directory = "test"                  }
+                , haskellWatch { directory = "test/Acceptance"       }
+                , haskellWatch { directory = "test/Schedules"        }
+                , haskellWatch { directory = "test/V1_1"             }
                 , WatchDir { directory = "."
                            , files = []
                            , globs = ["*.cabal", "*.hs", "*.yaml"]
-                           }
-                , WatchDir { directory = "lib"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "lib/V1_1"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "lib/Base"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "lib/PL"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "lib/PL/Base"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "lib/Source"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "lib/Source/CallCredit"
-                           , files = []
-                           , globs = ["*.hs"]
-                           }
-                , WatchDir { directory = "app"
-                           , files = []
-                           , globs = ["*.hs"]
                            }
                 ]
 

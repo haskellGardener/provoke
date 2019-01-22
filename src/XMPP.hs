@@ -5,7 +5,7 @@
            , QuasiQuotes
            , UndecidableInstances
 #-}
-{-| Time-stamp: <2018-11-28 12:08:56 CST>
+{-| Time-stamp: <2019-01-22 12:58:21 CST>
 
 Module      : XMPP
 Copyright   : (c) Robert Lee, 2015-2018
@@ -66,13 +66,20 @@ import Control.Monad          ( forever, void )
 import Data.Version           ( showVersion )
 import Data.XML.Types         ( Element )
 import Network.HostName       ( getHostName )
-import Network.Xmpp           ( ConnectionDetails(UseSrv), ConnectionState(Secured), Jid, Message(..)
-                              , MessageType (Chat), Presence(Presence), PresenceType(Available)
-                              , StreamConfiguration, XmppFailure
-                              , connectionDetails, def, digestMd5, endSession, getJid, jidToText, message
-                              , messageFrom, messageTypeL, plain, presenceFrom, presenceOffline, presenceOnline
-                              , presenceType, scramSha1, sendMessage, sendPresence, session, sessionStreamConfiguration
-                              , waitForMessage,waitForPresence
+import Network.Xmpp           ( ConnectionDetails (UseSrv)
+                              , ConnectionState   (Secured)
+                              , Jid
+                              , Message           (..)
+                              , MessageType       (Chat)
+                              , Presence          (Presence)
+                              , PresenceType      (Available)
+                              , StreamConfiguration
+                              , XmppFailure
+                              , connectionDetails, def, digestMd5, endSession, getJid, jidToText
+                              , message, messageFrom, messageTypeL, plain, presenceFrom
+                              , presenceOffline, presenceOnline, presenceType, scramSha1
+                              , sendMessage, sendPresence, session, sessionStreamConfiguration
+                              , waitForMessage, waitForPresence
                               )
 import Network.Xmpp.IM        ( simpleIM )
 import Network.Xmpp.Lens      ( set )
@@ -92,7 +99,7 @@ import qualified Text.XML       as TX
 
 -- End of Imports
 -- -----------------------------------------------------------------------------------------------------------------------------------------------------
- 
+
 {- TODO
    Add a version of transmit that can break long lines into multiple transmits with greater indentation, or some such.
 -}
@@ -101,7 +108,9 @@ chanOutXMPP :: XmppPK -> TChan ReportMsg -> IO (Either XmppFailure ())
 chanOutXMPP xmppPK tchan = forever $ do
   ReportMsg {..} <- atomically $ readTChan tchan -- modify this to perform several additional attempts after one succedes.
   case rmMessage of
-    Nothing -> transmit xmppPK $ T.null rmCmd ? rmMsg $ T.concat [rmCmd, "\n", rmMsg]
+    Nothing -> transmit xmppPK
+             $ T.null rmCmd ? rmMsg
+                            $ T.concat [rmCmd, "\n", rmMsg]
     Just mess -> rawTran xmppPK mess
 
 rawTran :: XmppPK -> Message -> IO (Either XmppFailure ())
@@ -124,7 +133,7 @@ getChat XmppPK {..} = waitForMessage mF sessX
 
 startXMPP :: Jid -> T.Text -> IO (Either XmppFailure (Maybe XmppPK))
 startXMPP toJ fromResource = do
-  -- TODO: report any existing resources in the header comments sent to the user.
+  -- TODO: report any existing resources in the header comments sent to the user.                                                                    -- ⚠
   eSess <- session realm (simpleAuthRes user pass fromResource) def { sessionStreamConfiguration = streamConfig }
 
   case eSess of
@@ -164,17 +173,18 @@ startXMPP toJ fromResource = do
                                _ -> False
 
     provokeMsg = T.intercalate " " $ map T.pack ["✧ provoke version:", showVersion version]
-    infoMsg = T.intercalate " " $ map T.pack ["✧ System.Info:", os, arch, compilerName, showVersion compilerVersion]
-    simpleAuthRes uname pwd resource = Just (\cstate -> [ scramSha1 uname Nothing pwd
-                                                        , digestMd5 uname Nothing pwd
-                                                        ] ++ if (cstate == Secured)
-                                                             then [plain uname Nothing pwd]
-                                                             else []
-                                            , Just resource
-                                            )
+    infoMsg    = T.intercalate " " $ map T.pack ["✧ System.Info:", os, arch, compilerName, showVersion compilerVersion]
+    simpleAuthRes uname pwd resource =
+      Just (\cstate -> [ scramSha1 uname Nothing pwd
+                       , digestMd5 uname Nothing pwd
+                       ] ++ if (cstate == Secured)
+                            then [plain uname Nothing pwd]
+                            else []
+           , Just resource
+           )
     realm = "chicago.vc" -- TODO: move credentials to config file or ask on command line                                                             -- ⚠
-    user = "FutureFinance"
-    pass = "PUT YOUR PASSWORD HERE"
+    user = "provoke"
+    pass = ""
 
 styleMsg :: T.Text -> T.Text -> Message -- TODO: This should come with a real alt prefix for XHTML poor clients                                      -- ⚠
 styleMsg style alt@txt = message { messageType    = Chat
